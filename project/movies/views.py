@@ -1,56 +1,36 @@
-# Create your views here.
-from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponse, JsonResponse
-from django.views import View
+from __future__ import annotations
 
-from rest_framework import viewsets
-from rest_framework.generics import ListCreateAPIView
+from django.http import JsonResponse, HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
 
-from movies.models import Genre, Movie
-from movies.serializers import MovieSerializer
+from movies.models import Movie
 
-def movie_index(request):
+
+def _serialize_movie(movie: Movie) -> dict:
+    return {
+        "id": movie.id,
+        "title": movie.title,
+        "year": movie.year,
+        "genre": (
+            {"id": movie.genre.id, "name": movie.genre.name} if movie.genre_id else None
+        ),
+        "added_at": movie.added_at.isoformat() if movie.added_at else None,
+    }
+
+
+@require_http_methods(["GET"])
+def movie_index(request: HttpRequest) -> HttpResponse:
+    return HttpResponse("Movies app")
+
+
+@require_http_methods(["GET"])
+def movies_list(request: HttpRequest) -> JsonResponse:
     movies = Movie.objects.all()
-    return HttpResponse(f'Hello, movies: [{"|".join(str(movie) for movie in movies)}]')
+    return JsonResponse({"movies": [_serialize_movie(m) for m in movies]})
 
-def movie_detail_deprecated(request, movie_id):
+
+@require_http_methods(["GET"])
+def movie_detail(request: HttpRequest, movie_id: int) -> JsonResponse:
     movie = get_object_or_404(Movie, id=movie_id)
-    return JsonResponse({'movie': {'id': movie.id, 'title': movie.title, 'year': movie.year}})
-
-def movies_list(request):
-    movies = Movie.objects.all()
-    return JsonResponse({'movies': list(movies)})
-
-def movie_add_deprecated(request):
-    pass
-
-def movies_destroy(request):
-    pass
-
-def movie_detail(request, movie_id):
-    movie = get_object_or_404(Movie, id=movie_id)
-    return JsonResponse({'movie': MovieSerializer(movie).data})
-
-class MovieView(View):
-    def get(self, request, movie_id):
-        print(f"[MovieView] Method GET")
-        movie = get_object_or_404(Movie, id=movie_id)
-        return JsonResponse({'movie': MovieSerializer(movie).data})
-
-    def post(self, request, movie_id):
-        print(f"[MovieView] Method POST")
-        movies = Movie.objects.all()
-        return JsonResponse({'movie': MovieSerializer(movies, many=True).data})
-
-class MoviesViewsetList(viewsets.ViewSet):
-    def list(self, request):
-        movies = Movie.objects.all()
-        return JsonResponse({'movie': MovieSerializer(movies, many=True).data})
-
-    def retrieve(self, request, pk):
-        movie = get_object_or_404(Movie, id=pk)
-        return JsonResponse({'movie': MovieSerializer(movie).data})
-
-class MoviesGenericView(ListCreateAPIView):
-    serializer_class = MovieSerializer
-    queryset = Movie.objects.all()
+    return JsonResponse({"movie": _serialize_movie(movie)})

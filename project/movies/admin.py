@@ -1,5 +1,11 @@
 from django.contrib import admin
-from movies.models import Genre, Movie
+
+from movies.models import Actor, Genre, Movie, UserProfile
+
+
+admin.site.register(Actor)
+admin.site.register(UserProfile)
+
 
 class MovieAdmin(admin.ModelAdmin):
     list_display = ('title', 'genre', 'year',)

@@ -1,0 +1,2 @@
+Put static files here (images, videos, etc.) for nginx `location /public/`.
+
