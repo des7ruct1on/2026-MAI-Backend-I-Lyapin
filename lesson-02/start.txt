@@ -1,0 +1,123 @@
+Демонстрация ДЗ №2 (lesson-02): nginx + gunicorn + WSGI + замеры
+===============================================================
+
+0) Перейти в папку lesson-02
+
+cd /Users/ivan/Desktop/prog/2026-MAI-Backend-I-Lyapin/lesson-02
+
+
+1) (Опционально) Быстрая проверка генератора паролей без nginx/gunicorn
+
+python smoke_test.py
+# Ожидается: OK
+
+
+2) Установка (если нужно)
+
+# gunicorn (внутри venv, если он у вас используется)
+pip install gunicorn
+
+# nginx и wrk на macOS через brew (если не установлены)
+brew install nginx
+brew install wrk
+
+
+3) Подготовить nginx-логи (иначе nginx может не стартовать)
+
+mkdir -p /Users/ivan/Desktop/prog/2026-MAI-Backend-I-Lyapin/lesson-02/logs
+
+
+4) Запуск WSGI-приложения через gunicorn (Терминал №1, держим запущенным)
+
+gunicorn --workers 4 --bind 127.0.0.1:8000 myapp:app
+
+
+5) Проверка “напрямую gunicorn” (Терминал №2)
+
+curl -v http://127.0.0.1:8000/
+
+
+6) Запуск nginx с вашим конфигом (Терминал №2)
+
+# ВАЖНО: конфиг слушает порт 80, поэтому обычно нужен sudo
+sudo nginx -t -c /Users/ivan/Desktop/prog/2026-MAI-Backend-I-Lyapin/lesson-02/nginx/nginx.conf
+sudo nginx -c /Users/ivan/Desktop/prog/2026-MAI-Backend-I-Lyapin/lesson-02/nginx/nginx.conf
+
+# Проверка, что nginx слушает 80
+sudo lsof -nP -iTCP:80 -sTCP:LISTEN
+
+
+7) Проверка статики (location /public/) — требование “скачать ресурс из public/”
+
+# Положить любой файл в public/ (можно использовать существующий example.txt)
+ls -l public/
+
+# Проверить в браузере:
+#   http://localhost/public/example.txt
+
+# Или через curl:
+curl -v http://127.0.0.1/public/example.txt
+
+
+8) Проверка проксирования в gunicorn (location /gunicorn/ через upstream)
+
+# В браузере:
+#   http://localhost/gunicorn/
+
+# Или через curl:
+curl -v http://127.0.0.1/gunicorn/
+
+
+9) Замеры производительности (ab) — 3 замера из задания
+
+# На некоторых macOS-сборках `ab` не поддерживает ключ `-4`.
+# Чтобы гарантированно бить в IPv4 — используйте 127.0.0.1 в URL (как ниже).
+# Полезно также:
+#   -k  keep-alive (ближе к реальному браузеру)
+#   -s  таймаут на запрос (сек), чтобы быстрее увидеть “порог”
+#
+# Если `ab` падает с "Connection reset by peer", проверьте nginx error.log.
+# Частая причина — слишком маленький `worker_connections` в nginx (должно быть >= concurrency),
+# иначе nginx пишет "worker_connections are not enough" и тест разваливается.
+
+## 9.1) public (nginx отдаёт статику)
+ab -n 20000 -c 100 -k -s 5 http://127.0.0.1/public/example.txt
+
+## 9.2) gunicorn через nginx (проксирование)
+ab -n 20000 -c 100 -k -s 5 http://127.0.0.1/gunicorn/
+
+## 9.3) напрямую gunicorn
+ab -n 20000 -c 100 -k -s 5 http://127.0.0.1:8000/
+
+
+10) Подбор нагрузки “до порога” (как в задании: +10% → ошибки/таймауты)
+
+# Идея: повторять замер, увеличивая конкуррентность (-c) до тех пор,
+# пока при увеличении примерно на +10% не начнут появляться Failed requests/таймауты.
+
+# Пример сетки (подберите под вашу машину):
+ab -n 20000 -c 25  -k -s 5 http://127.0.0.1/public/example.txt
+ab -n 20000 -c 50  -k -s 5 http://127.0.0.1/public/example.txt
+ab -n 20000 -c 100 -k -s 5 http://127.0.0.1/public/example.txt
+ab -n 20000 -c 150 -k -s 5 http://127.0.0.1/public/example.txt
+ab -n 20000 -c 200 -k -s 5 http://127.0.0.1/public/example.txt
+
+
+ab -t 10 -c 242 -s 1 http://127.0.0.1/gunicorn/
+
+# То же самое (аналогично) повторить для:
+#   http://127.0.0.1/gunicorn/
+#   http://127.0.0.1:8000/
+
+
+11) (Опционально) Замеры wrk вместо ab
+
+wrk -t4 -c100 -d20s http://127.0.0.1/public/example.txt
+wrk -t4 -c100 -d20s http://127.0.0.1/gunicorn/
+wrk -t4 -c100 -d20s http://127.0.0.1:8000/
+
+
+12) Остановка nginx (когда закончили показывать)
+
+sudo nginx -s stop -c /Users/ivan/Desktop/prog/2026-MAI-Backend-I-Lyapin/lesson-02/nginx/nginx.conf
+
