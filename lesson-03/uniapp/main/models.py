@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -18,6 +19,13 @@ class Product(models.Model):
 
 
 class Profile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+        null=True,
+        blank=True,
+    )
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
     favorites = models.ManyToManyField(Product, blank=True, related_name="favorited_by")
