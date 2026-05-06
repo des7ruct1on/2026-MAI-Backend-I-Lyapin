@@ -1,0 +1,4 @@
+sudo nginx -t -c /Users/ivan/Desktop/prog/2026-MAI-Backend-I-Lyapin/lesson-02/nginx/nginx.conf
+sudo nginx -c /Users/ivan/Desktop/prog/2026-MAI-Backend-I-Lyapin/lesson-02/nginx/nginx.conf
+
+sudo nginx -s stop -c /Users/ivan/Desktop/prog/2026-MAI-Backend-I-Lyapin/lesson-02/nginx/nginx.conf
