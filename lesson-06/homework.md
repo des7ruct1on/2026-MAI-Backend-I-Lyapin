@@ -18,3 +18,9 @@
 docker и docker-compose склонировать проект, выполнить команды `make
 migrate` и увидеть успешную миграцию.
 
+curl -sS -G "http://127.0.0.1:8080/api/search/" --data-urlencode "q=lol"
+curl -sS -X POST "http://127.0.0.1:8001/api/products/create/" -H "Content-Type: application/json" -d '{"title":"test111","description":"descr-test","price":111,"category_title":"test_cat"}'
+
+docker compose -f lesson-06/docker-compose.yml down
+
+docker compose -f lesson-06/docker-compose.yml up --build -d

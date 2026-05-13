@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: uniapp_db
+      POSTGRES_USER: uniapp_user
+      POSTGRES_PASSWORD: uniapp_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uniapp_user -d uniapp_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: ..
+      dockerfile: lesson-03/uniapp/Dockerfile
+    environment:
+      POSTGRES_DB: uniapp_db
+      POSTGRES_USER: uniapp_user
+      POSTGRES_PASSWORD: uniapp_pass
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,nginx,web,0.0.0.0
+      DJANGO_DEBUG: "0"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             gunicorn --bind 0.0.0.0:8001 --workers 2 uniapp.wsgi:application"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    expose:
+      - "8001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8001/api/products/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-docker.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/web/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:
